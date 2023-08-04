@@ -1,33 +1,32 @@
 const express = require('express');
-const axios = require('axios');
+const { Configuration, OpenAIApi } = require('openai');
 require('dotenv').config();
 const app = express();
-const PORT = process.env.PORT || 8080;
 const cors = require("cors");
+const PORT = process.env.PORT || 8080;
 
-// Middleware to parse JSON body
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
 app.use(express.json());
 app.use(cors());
 
-// Endpoint to get a quote based on the provided keyword
 app.post('/getQuote', async (req, res) => {
   const { keyword } = req.body;
-  
+  // console.log(keyword);
+
   try {
-    // Call the ChatGPT API to generate a quote
-    const gptResponse = await axios.post('https://api.openai.com/v1/engines/davinci-codex/completions', {
-      prompt: `Generate a quote about ${keyword}`,
-      max_tokens: 50, // Adjust the max_tokens as per your requirement
+    const response = await openai.createChatCompletion({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'system', content: `You are a helpful assistant that generates quotes about ${keyword}.` }],
       temperature: 0.7, // Adjust the temperature for different levels of randomness (0.2 to 1.0)
-      n: 1 // Number of quotes to generate
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
+      max_tokens: 100, // Adjust the max_tokens as per your requirement
     });
 
-    const quote = gptResponse.data.choices[0].text.trim();
+    const quote = response.data.choices[0].message.content.trim();
+    // console.log(quote);
     res.json({ quote });
   } catch (error) {
     console.error('Error generating quote:', error);
@@ -35,7 +34,6 @@ app.post('/getQuote', async (req, res) => {
   }
 });
 
-// Start the server
 app.listen(PORT, () => {
   console.log(`Server started on http://localhost:${PORT}`);
 });
